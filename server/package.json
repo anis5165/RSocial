@@ -7,7 +7,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "build:render": "cd .. && npm install && npm run build:server",
-    "start": "node dist/index.js",
+    "start": "node scripts/start-render.cjs",
+    "start:node": "node dist/index.js",
     "migrate": "tsx src/db/migrate.ts",
     "seed:user": "tsx src/db/seedUser.ts",
     "mcp:token": "tsx src/db/mintMcpToken.ts",
@@ -29,9 +30,10 @@
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.12.0",
     "node-cron": "^3.0.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
     "uuid": "^11.0.5",
-    "zod": "^3.24.1",
-    "typescript": "^5.7.3"
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -41,7 +43,6 @@
     "@types/luxon": "^3.4.2",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.10.7",
-    "@types/node-cron": "^3.0.11",
-    "tsx": "^4.19.2"
+    "@types/node-cron": "^3.0.11"
   }
 }

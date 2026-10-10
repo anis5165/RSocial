@@ -1,12 +1,11 @@
-# Render Blueprint — deploy from repo root
 services:
   - type: web
     name: routism-social-api
     runtime: node
     plan: free
-    # IMPORTANT: leave root at repo root (do NOT set rootDir to "server")
-    buildCommand: npm install && npm run build:server
-    startCommand: npm run start:server
+    rootDir: server
+    buildCommand: npm run build:render
+    startCommand: npm start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
