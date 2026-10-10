@@ -56,6 +56,7 @@ app.use(
       }
       return cb(null, false);
     },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
     exposedHeaders: ['Mcp-Session-Id'],
   })
