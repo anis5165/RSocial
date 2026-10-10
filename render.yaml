@@ -1,11 +1,10 @@
-# Render Blueprint — backend API only
-# https://render.com/docs/blueprint-spec
+# Render Blueprint — deploy from repo root
 services:
   - type: web
     name: routism-social-api
     runtime: node
     plan: free
-    rootDir: .
+    # IMPORTANT: leave root at repo root (do NOT set rootDir to "server")
     buildCommand: npm install && npm run build:server
     startCommand: npm run start:server
     healthCheckPath: /api/health
@@ -14,4 +13,3 @@ services:
         value: production
       - key: COOKIE_SECURE
         value: "true"
-      # Set the rest in the Render dashboard (secrets / URLs)

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
+    "build:render": "cd .. && npm install && npm run build:server",
     "start": "node dist/index.js",
     "migrate": "tsx src/db/migrate.ts",
     "seed:user": "tsx src/db/seedUser.ts",
