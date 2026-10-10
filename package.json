@@ -1,0 +1,31 @@
+{
+  "name": "routism-social",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Routism Social — social media publishing and scheduling platform",
+  "workspaces": [
+    "apps/dashboard",
+    "server",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,dashboard -c yellow,cyan \"npm run dev -w server\" \"npm run dev -w apps/dashboard\"",
+    "dev:server": "npm run dev -w server",
+    "dev:dashboard": "npm run dev -w apps/dashboard",
+    "build": "npm run build -w shared && npm run build -w server && npm run build -w apps/dashboard",
+    "start": "npm run start -w server",
+    "migrate": "npm run migrate -w server",
+    "seed:user": "npm run seed:user -w server",
+    "mcp:token": "npm run mcp:token -w server",
+    "mcp:smoke": "npm run mcp:smoke -w server",
+    "lint": "npm run lint -w server && npm run lint -w apps/dashboard",
+    "test": "npm run test -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
