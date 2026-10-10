@@ -1,0 +1,17 @@
+# Render Blueprint — backend API only
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: routism-social-api
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: npm install && npm run build:server
+    startCommand: npm run start:server
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: COOKIE_SECURE
+        value: "true"
+      # Set the rest in the Render dashboard (secrets / URLs)
