@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 const EFFECTIVE_DATE = '11 October 2026';
 const LAST_UPDATED = '11 October 2026';
 
-const privacyEmail = (import.meta.env.VITE_PRIVACY_CONTACT_EMAIL || '').trim();
+const privacyEmail = (import.meta.env.VITE_PRIVACY_CONTACT_EMAIL || 'routismofficials@gmail.com').trim();
 
 function Section({
   id,
