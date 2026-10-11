@@ -29,17 +29,9 @@ export function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen bg-bg text-ink">
       <header className="border-b border-white/[0.08] bg-bg-soft">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-ink-muted">Routism Social</div>
-            <p className="mt-0.5 text-sm text-ink-muted">Privacy Policy</p>
-          </div>
-          <Link
-            to="/login"
-            className="rounded-lg border border-white/[0.08] px-3 py-1.5 text-sm text-ink hover:border-accent/40 hover:text-accent"
-          >
-            Sign in
-          </Link>
+        <div className="mx-auto max-w-3xl px-4 py-4 sm:px-6">
+          <div className="text-xs uppercase tracking-[0.2em] text-ink-muted">Routism Social</div>
+          <p className="mt-0.5 text-sm text-ink-muted">Privacy Policy</p>
         </div>
       </header>
 
