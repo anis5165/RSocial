@@ -62,10 +62,10 @@ export function PrivacyPolicyPage() {
                 </span>
               )}
             </li>
-            <li>
+            {/* <li>
               Legal operator name and postal address for Routism / Routism Social —{' '}
               <strong className="font-medium text-amber-50">[to be supplied]</strong>
-            </li>
+            </li> */}
           </ul>
         </div>
 
@@ -325,15 +325,15 @@ export function PrivacyPolicyPage() {
             ) : (
               <p className="rounded-lg border border-white/[0.08] bg-bg-panel px-3 py-2 text-ink">
                 Privacy contact email:{' '}
-                <strong className="font-medium">[to be supplied]</strong> — configure{' '}
+                {/* <strong className="font-medium">[to be supplied]</strong> — configure{' '} */}
                 <code className="text-accent">VITE_PRIVACY_CONTACT_EMAIL</code> before treating this
                 contact section as final.
               </p>
             )}
-            <p>
+            {/* <p>
               Operator identity for notice purposes:{' '}
               <strong className="font-medium text-ink">[legal name and address to be supplied]</strong>.
-            </p>
+            </p> */}
           </Section>
         </div>
 
