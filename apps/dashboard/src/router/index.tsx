@@ -3,6 +3,7 @@ import { AuthProvider } from '../hooks/useAuth';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { LoginPage } from '../pages/LoginPage';
 import { RegisterPage } from '../pages/RegisterPage';
+import { PrivacyPolicyPage } from '../pages/PrivacyPolicyPage';
 import { OverviewPage } from '../pages/OverviewPage';
 import { QueuePage } from '../pages/QueuePage';
 import { MediaPage } from '../pages/MediaPage';
@@ -17,6 +18,7 @@ export function AppRouter() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           <Route element={<DashboardLayout />}>
             <Route path="/" element={<OverviewPage />} />
             <Route path="/queue" element={<QueuePage />} />

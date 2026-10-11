@@ -83,6 +83,11 @@ export function RegisterPage() {
             Sign in
           </Link>
         </p>
+        <p className="mt-3 text-center text-xs text-ink-muted">
+          <Link to="/privacy-policy" className="hover:text-accent hover:underline">
+            Privacy Policy
+          </Link>
+        </p>
       </form>
     </div>
   );

@@ -25,12 +25,18 @@ export function getApiError(err: unknown): ApiError {
   return { code: 'ERROR', message: 'Unexpected error' };
 }
 
+const PUBLIC_PATH_PREFIXES = ['/login', '/register', '/privacy-policy'];
+
+function isPublicPath(path: string): boolean {
+  return PUBLIC_PATH_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`));
+}
+
 api.interceptors.response.use(
   (res) => res,
   (error) => {
     if (error.response?.status === 401) {
       const path = window.location.pathname;
-      if (!path.startsWith('/login') && !path.startsWith('/register')) {
+      if (!isPublicPath(path)) {
         window.location.href = '/login';
       }
     }
