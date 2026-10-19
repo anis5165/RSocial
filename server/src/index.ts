@@ -11,6 +11,7 @@ import { startScheduler } from './services/scheduler/schedulerService';
 import { logger } from './utils/logger';
 import { pool } from './db/pool';
 import { createMcpRouter, mountMcpAuth } from './mcp/http';
+import { mountChatgptIntegration } from './integrations/chatgpt';
 
 import authRoutes from './routes/authRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
@@ -71,6 +72,9 @@ app.use(requestLogger);
 // MCP OAuth AS metadata + /authorize /token /register /revoke (mounted at root)
 mountMcpAuth(app);
 
+// ChatGPT Custom GPT Actions / Plugin OAuth + REST actions (shares publishPost services)
+mountChatgptIntegration(app);
+
 app.use(csrfProtection);
 
 app.get('/api/health', (_req, res) => {
@@ -80,6 +84,8 @@ app.get('/api/health', (_req, res) => {
       status: 'ok',
       time: new Date().toISOString(),
       mcp: '/mcp',
+      chatgptActions: '/integrations/chatgpt/v1',
+      chatgptOpenApi: '/integrations/chatgpt/openapi.json',
     },
   });
 });

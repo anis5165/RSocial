@@ -1,17 +1,17 @@
-import { DateTime } from 'luxon';
 import { z } from 'zod';
 import {
-  listConnectedAccounts,
-  uploadImage,
-  createPost,
-  schedulePost,
-  publishPost,
-  getPostStatus,
-  cancelPost,
-} from '../services';
-import { AppError, isAppError } from '../utils/errors';
+  actionCancelScheduledPost,
+  actionCreatePost,
+  actionGetPostStatus,
+  actionListConnectedAccounts,
+  actionListScheduledPosts,
+  actionPublishPost,
+  actionRetryPost,
+  actionSchedulePost,
+  actionUploadMedia,
+} from '../integrations/shared/publishingActions';
+import { isAppError } from '../utils/errors';
 import { logger } from '../utils/logger';
-import { assertTimezone } from '../utils/time';
 import { McpServer } from './sdk';
 
 function textResult(data: unknown, isError = false) {
@@ -44,47 +44,6 @@ function mcpError(err: unknown) {
     },
     true
   );
-}
-
-function parseScheduleInput(scheduledAt: string, timezone: string) {
-  const tz = assertTimezone(timezone);
-  let dt = DateTime.fromISO(scheduledAt, { zone: tz });
-  if (!dt.isValid) {
-    dt = DateTime.fromSQL(scheduledAt, { zone: tz });
-  }
-  if (!dt.isValid) {
-    dt = DateTime.fromFormat(scheduledAt, 'yyyy-MM-dd HH:mm', { zone: tz });
-  }
-  if (!dt.isValid) {
-    dt = DateTime.fromFormat(scheduledAt, 'yyyy-MM-dd HH:mm:ss', { zone: tz });
-  }
-  if (!dt.isValid) {
-    throw new AppError(
-      'SCHEDULE_INVALID',
-      'Invalid scheduledAt. Use ISO local datetime like 2026-10-11T20:00:00 in the given timezone.',
-      400
-    );
-  }
-  return {
-    date: dt.toFormat('yyyy-MM-dd'),
-    time: dt.toFormat('HH:mm:ss'),
-    timezone: tz,
-  };
-}
-
-function toMulterFile(buffer: Buffer, mimeType: string, filename: string): Express.Multer.File {
-  return {
-    fieldname: 'file',
-    originalname: filename,
-    encoding: '7bit',
-    mimetype: mimeType,
-    size: buffer.length,
-    buffer,
-    stream: undefined as unknown as Express.Multer.File['stream'],
-    destination: '',
-    filename,
-    path: '',
-  };
 }
 
 export function createRoutismMcpServer(userId: string, requestId?: string) {
@@ -129,16 +88,7 @@ export function createRoutismMcpServer(userId: string, requestId?: string) {
         openWorldHint: false,
       },
     },
-    async () =>
-      runTool('list_connected_accounts', async () => {
-        const accounts = await listConnectedAccounts(userId);
-        return accounts.map((a) => ({
-          id: a.id,
-          platform: a.platform,
-          username: a.username.startsWith('@') ? a.username : `@${a.username}`,
-          status: a.status,
-        }));
-      })
+    async () => runTool('list_connected_accounts', () => actionListConnectedAccounts(userId))
   );
 
   server.registerTool(
@@ -161,32 +111,8 @@ export function createRoutismMcpServer(userId: string, requestId?: string) {
         openWorldHint: true,
       },
     },
-    async (args: {
-      imageBase64: string;
-      mimeType?: string;
-      filename?: string;
-    }) =>
-      runTool('upload_image', async () => {
-        let b64 = args.imageBase64.trim();
-        let mime = (args.mimeType || 'image/jpeg').toLowerCase();
-        if (b64.startsWith('data:')) {
-          const match = /^data:([^;]+);base64,(.+)$/s.exec(b64);
-          if (!match) throw new AppError('INVALID_MEDIA', 'Invalid data URL.', 400);
-          mime = match[1].toLowerCase();
-          b64 = match[2];
-        }
-        const buffer = Buffer.from(b64, 'base64');
-        if (!buffer.length) throw new AppError('INVALID_MEDIA', 'Empty image payload.', 400);
-        const filename = args.filename || 'upload.jpg';
-        const media = await uploadImage(userId, toMulterFile(buffer, mime, filename));
-        return {
-          mediaId: media.id,
-          secureUrl: media.secureUrl,
-          mimeType: media.mimeType,
-          width: media.width,
-          height: media.height,
-        };
-      })
+    async (args: { imageBase64: string; mimeType?: string; filename?: string }) =>
+      runTool('upload_image', () => actionUploadMedia(userId, args))
   );
 
   server.registerTool(
@@ -194,10 +120,11 @@ export function createRoutismMcpServer(userId: string, requestId?: string) {
     {
       title: 'Create draft post',
       description:
-        'Create a Routism Social draft post for the authenticated user using an existing mediaId and caption. Use this when the user wants to prepare content without publishing yet (e.g. "prepare this post"). Does not publish to Instagram. Returns postId and status=draft.',
+        'Create a draft Instagram post for the authenticated Routism user using a previously uploaded media asset. This does not publish the post. Returns postId and status=draft.',
       inputSchema: {
         caption: z.string().min(1).max(2200).describe('Instagram caption text'),
         mediaId: z.string().uuid().describe('Media ID returned by upload_image'),
+        accountId: z.string().uuid().optional().describe('Optional connected Instagram account id'),
       },
       annotations: {
         readOnlyHint: false,
@@ -205,19 +132,8 @@ export function createRoutismMcpServer(userId: string, requestId?: string) {
         openWorldHint: false,
       },
     },
-    async (args: { caption: string; mediaId: string }) =>
-      runTool('create_post', async () => {
-        const post = await createPost(userId, {
-          caption: args.caption,
-          mediaId: args.mediaId,
-        });
-        return {
-          postId: post.id,
-          status: post.status,
-          caption: post.caption,
-          mediaId: post.mediaId,
-        };
-      })
+    async (args: { caption: string; mediaId: string; accountId?: string }) =>
+      runTool('create_post', () => actionCreatePost(userId, args))
   );
 
   server.registerTool(
@@ -225,7 +141,7 @@ export function createRoutismMcpServer(userId: string, requestId?: string) {
     {
       title: 'Schedule post',
       description:
-        'Schedule an existing Routism Social post for a future date/time. The server converts the local scheduledAt in the given timezone to UTC and stores both. Use when the user wants future publishing (e.g. "tomorrow at 8 PM India time"). Requires a connected Instagram account. Only posts owned by the authenticated user can be scheduled.',
+        'Schedule an existing Instagram draft for future publication. Routism will publish it automatically at the scheduled time. Requires a connected Instagram account. Only posts owned by the authenticated user can be scheduled.',
       inputSchema: {
         postId: z.string().uuid().describe('Post ID to schedule'),
         scheduledAt: z
@@ -245,19 +161,7 @@ export function createRoutismMcpServer(userId: string, requestId?: string) {
       },
     },
     async (args: { postId: string; scheduledAt: string; timezone?: string }) =>
-      runTool('schedule_post', async () => {
-        const parsed = parseScheduleInput(args.scheduledAt, args.timezone || 'Asia/Kolkata');
-        const post = await schedulePost(userId, {
-          postId: args.postId,
-          ...parsed,
-        });
-        return {
-          postId: post.id,
-          status: post.status,
-          scheduledAt: post.scheduledAt,
-          timezone: post.timezone,
-        };
-      })
+      runTool('schedule_post', () => actionSchedulePost(userId, args))
   );
 
   server.registerTool(
@@ -265,7 +169,7 @@ export function createRoutismMcpServer(userId: string, requestId?: string) {
     {
       title: 'Publish post now',
       description:
-        "Publish an existing Routism Social draft immediately to the authenticated user's connected Instagram account. Use this ONLY when the user explicitly wants the post published now. Do not publish for ambiguous requests like \"prepare this\". Calls the same backend publishPost service used by the website and scheduler. Never ask for Instagram tokens.",
+        "Immediately publish an existing Instagram post. This creates an external side effect on Instagram. Use ONLY when the user explicitly wants the post published now. Calls the same backend publishPost service used by the website and scheduler. Never ask for Instagram tokens.",
       inputSchema: {
         postId: z.string().uuid().describe('Post ID to publish'),
       },
@@ -276,16 +180,7 @@ export function createRoutismMcpServer(userId: string, requestId?: string) {
       },
     },
     async (args: { postId: string }) =>
-      runTool('publish_post', async () => {
-        const post = await publishPost(args.postId, userId);
-        const delivery = post.deliveries?.find((d) => d.status === 'published');
-        return {
-          postId: post.id,
-          status: post.status,
-          remotePostId: delivery?.remotePostId || null,
-          errorMessage: post.errorMessage,
-        };
-      })
+      runTool('publish_post', () => actionPublishPost(userId, args))
   );
 
   server.registerTool(
@@ -293,7 +188,7 @@ export function createRoutismMcpServer(userId: string, requestId?: string) {
     {
       title: 'Get post status',
       description:
-        'Return the current status of a Routism Social post owned by the authenticated user, including scheduled time, platform, and remote Instagram post id when available. Use after create/schedule/publish to confirm state. Returns POST_NOT_FOUND for posts that do not belong to this user.',
+        'Return the current status of a Routism Social post owned by the authenticated user, including scheduled time and remote Instagram post id when available.',
       inputSchema: {
         postId: z.string().uuid().describe('Post ID to inspect'),
       },
@@ -304,19 +199,7 @@ export function createRoutismMcpServer(userId: string, requestId?: string) {
       },
     },
     async (args: { postId: string }) =>
-      runTool('get_post_status', async () => {
-        const post = await getPostStatus(args.postId, userId);
-        const delivery = post.deliveries?.find((d) => d.remotePostId) || post.deliveries?.[0];
-        return {
-          postId: post.id,
-          status: post.status,
-          scheduledAt: post.scheduledAt,
-          timezone: post.timezone,
-          platform: 'instagram',
-          remotePostId: delivery?.remotePostId || null,
-          errorMessage: post.errorMessage,
-        };
-      })
+      runTool('get_post_status', () => actionGetPostStatus(userId, args.postId))
   );
 
   server.registerTool(
@@ -324,7 +207,7 @@ export function createRoutismMcpServer(userId: string, requestId?: string) {
     {
       title: 'Cancel scheduled post',
       description:
-        'Cancel a scheduled Routism Social post owned by the authenticated user, returning it to draft. Only allowed when status is scheduled. Do not use for published posts. Confirm with the user before cancelling when the instruction is ambiguous.',
+        'Cancel a future scheduled Instagram post and return it to draft status. This does not delete the media. Only allowed when status is scheduled.',
       inputSchema: {
         postId: z.string().uuid().describe('Scheduled post ID to cancel'),
       },
@@ -335,13 +218,47 @@ export function createRoutismMcpServer(userId: string, requestId?: string) {
       },
     },
     async (args: { postId: string }) =>
-      runTool('cancel_post', async () => {
-        const post = await cancelPost(args.postId, userId);
-        return {
-          postId: post.id,
-          status: post.status,
-        };
-      })
+      runTool('cancel_post', () => actionCancelScheduledPost(userId, args.postId))
+  );
+
+  server.registerTool(
+    'list_scheduled_posts',
+    {
+      title: 'List scheduled posts',
+      description:
+        'List upcoming scheduled Instagram posts for the authenticated Routism user. Use before creating another scheduled post from a ChatGPT task.',
+      inputSchema: {
+        from: z.string().optional().describe('Optional ISO lower bound'),
+        to: z.string().optional().describe('Optional ISO upper bound'),
+        accountId: z.string().uuid().optional(),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (args: { from?: string; to?: string; accountId?: string }) =>
+      runTool('list_scheduled_posts', () => actionListScheduledPosts(userId, args))
+  );
+
+  server.registerTool(
+    'retry_post',
+    {
+      title: 'Retry failed post',
+      description:
+        'Retry publishing a failed or needs_review Instagram post using Routism publishPost(). Does not create a duplicate when already published.',
+      inputSchema: {
+        postId: z.string().uuid().describe('Failed post ID'),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (args: { postId: string }) =>
+      runTool('retry_post', () => actionRetryPost(userId, args))
   );
 
   return server;

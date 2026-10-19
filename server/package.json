@@ -14,7 +14,8 @@
     "mcp:token": "tsx src/db/mintMcpToken.ts",
     "mcp:smoke": "tsx src/mcp/smokeTest.ts",
     "lint": "tsc --noEmit",
-    "test": "tsx --test src/utils/crypto.test.ts"
+    "test": "tsx --test src/utils/crypto.test.ts src/integrations/shared/publishingActions.test.ts src/integrations/chatgpt/chatgpt.e2e.test.ts",
+    "chatgpt:openapi": "tsx -e \"import { openApiDocument } from './src/integrations/chatgpt/openapi.ts'; console.log(JSON.stringify(openApiDocument(), null, 2))\""
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",

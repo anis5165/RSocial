@@ -1,6 +1,7 @@
 /**
- * Service facade for HTTP controllers and MCP tools.
- * MCP must call these exact functions — not duplicate logic in routes.
+ * Service facade for HTTP controllers, MCP tools, and ChatGPT Actions.
+ * All integrations must call these services / shared publishingActions —
+ * never duplicate Instagram publishing logic.
  */
 export { listConnectedAccounts } from './accounts/accountsService';
 export { uploadImage as uploadImage } from './media/mediaService';
@@ -9,5 +10,7 @@ export {
   schedulePost,
   getPostById as getPostStatus,
   cancelPost,
+  listPosts,
 } from './posts/postsService';
-export { publishPost } from './posts/publishService';
+export { publishPost, retryPost } from './posts/publishService';
+export { withIdempotency } from './idempotency/idempotencyService';
