@@ -327,7 +327,7 @@ For local tunnels (ngrok, Cloudflare Tunnel), point `API_BASE_URL` at the HTTPS 
 
 | Issue | Check |
 |-------|--------|
-| DB connection failed | On Render, use Hostinger’s **remote** MySQL hostname (not `localhost`). Enable Remote MySQL and allow `%` or Render outbound IPs. Empty error text is usually IPv6; the API now forces IPv4. If Hostinger requires TLS, set `DATABASE_SSL=require`. Redeploy and read `database_connection_failed` `code` / `errno` in logs. |
+| DB connection failed (`ETIMEDOUT` on Render) | Hostinger is dropping port 3306. In hPanel: **Websites → Remote MySQL → Any Host (%)** for this database. Use the hostname shown on that page (often `srvXXXX.hstgr.io`), port `3306`. Render IPs change, so a single IP allowlist will fail. After saving, wait for `database_connected` in logs (the API retries in production). |
 | Cloudinary upload fails | Cloud name/key/secret; JPEG only; size ≤ 8MB |
 | Instagram connect fails | Redirect URI exact match; Page ↔ IG professional link; permissions |
 | Publish fails | Account connected; token not expired; public Cloudinary HTTPS URL reachable by Meta |

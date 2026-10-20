@@ -1,54 +1,53 @@
-import dns from 'node:dns';
+import net from 'node:net';
 import type { ConnectionOptions } from 'mysql2';
 import { env, isProd } from '../config/env';
-
-/** mysql2's published types omit Node net.connect fields that the driver still forwards. */
-type MysqlNetOptions = ConnectionOptions & {
-  family?: number;
-  lookup?: (
-    hostname: string,
-    options: dns.LookupOneOptions,
-    callback: (err: NodeJS.ErrnoException | null, address: string, family: number) => void
-  ) => void;
-};
 
 function isLocalHost(host: string): boolean {
   return host === 'localhost' || host === '127.0.0.1' || host === '::1';
 }
 
-export function mysqlConnectionOptions(overrides: ConnectionOptions = {}): MysqlNetOptions {
+function ipFamily(): 4 | 6 | undefined {
+  if (env.DATABASE_IP_FAMILY === 6) return 6;
+  if (env.DATABASE_IP_FAMILY === 0) return undefined;
+  return 4;
+}
+
+/** mysql2 ignores `family`/`lookup`; it only uses a custom `stream` factory. */
+function createMysqlStream(): net.Socket {
+  const family = ipFamily();
+  const socket = net.connect({
+    host: env.DATABASE_HOST,
+    port: env.DATABASE_PORT,
+    ...(family ? { family } : {}),
+  });
+  socket.setNoDelay(true);
+  socket.on('connect', () => {
+    socket.setKeepAlive(true, 10_000);
+  });
+  return socket;
+}
+
+export function mysqlConnectionOptions(overrides: ConnectionOptions = {}): ConnectionOptions {
   const host = env.DATABASE_HOST;
   const local = isLocalHost(host);
-  const ipFamily = env.DATABASE_IP_FAMILY === 6 ? 6 : env.DATABASE_IP_FAMILY === 0 ? 0 : 4;
 
   let ssl: ConnectionOptions['ssl'] | undefined;
   if (env.DATABASE_SSL === 'require' || (env.DATABASE_SSL === 'auto' && isProd && !local)) {
     ssl = { rejectUnauthorized: env.DATABASE_SSL_REJECT_UNAUTHORIZED };
   }
 
-  const options: MysqlNetOptions = {
+  return {
     host,
     port: env.DATABASE_PORT,
     user: env.DATABASE_USER,
     password: env.DATABASE_PASSWORD,
     ssl,
     connectTimeout: env.DATABASE_CONNECT_TIMEOUT_MS,
-    enableKeepAlive: true,
-    keepAliveInitialDelay: 10_000,
     timezone: 'Z',
     dateStrings: false,
+    stream: local ? undefined : createMysqlStream,
     ...overrides,
   };
-
-  // Render + Hostinger: dual-stack DNS often yields AggregateError with an empty message.
-  if (ipFamily === 4 || ipFamily === 6) {
-    options.family = ipFamily;
-    options.lookup = (hostname, _opts, cb) => {
-      dns.lookup(hostname, { family: ipFamily, all: false }, cb);
-    };
-  }
-
-  return options;
 }
 
 export function mysqlPoolMeta(): Record<string, unknown> {

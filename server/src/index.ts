@@ -79,11 +79,14 @@ mountChatgptIntegration(app);
 
 app.use(csrfProtection);
 
+let dbReady = false;
+
 app.get('/api/health', (_req, res) => {
   res.json({
     success: true,
     data: {
-      status: 'ok',
+      status: dbReady ? 'ok' : 'degraded',
+      db: dbReady ? 'up' : 'down',
       time: new Date().toISOString(),
       mcp: '/mcp',
       chatgptActions: '/integrations/chatgpt/v1',
@@ -104,29 +107,52 @@ app.use('/mcp', createMcpRouter());
 
 app.use(errorHandler);
 
-async function boot() {
-  try {
-    await pool.query('SELECT 1');
-    logger.info('database_connected');
-  } catch (err) {
-    logger.error('database_connection_failed', {
-      ...mysqlPoolMeta(),
-      ...formatMysqlError(err),
-    });
-    process.exit(1);
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function connectDatabase(): Promise<void> {
+  let attempt = 0;
+  for (;;) {
+    attempt += 1;
+    try {
+      await pool.query('SELECT 1');
+      dbReady = true;
+      logger.info('database_connected', { attempt });
+      return;
+    } catch (err) {
+      logger.error('database_connection_failed', {
+        attempt,
+        hint: 'Hostinger: Websites → Remote MySQL → Any Host (%) for this database. Copy the hostname from that page (often srvXXXX.hstgr.io), not localhost.',
+        ...mysqlPoolMeta(),
+        ...formatMysqlError(err),
+      });
+      if (!isProd) {
+        process.exit(1);
+      }
+      const delayMs = Math.min(30_000, 2000 * attempt);
+      await sleep(delayMs);
+    }
   }
+}
 
-  startScheduler();
-
-  app.listen(env.PORT, () => {
-    logger.info('server_listening', {
-      port: env.PORT,
-      env: env.NODE_ENV,
-      prod: isProd,
-      mcp: `${env.API_BASE_URL}/mcp`,
+async function boot() {
+  // Bind PORT first so Render does not kill the deploy while MySQL is unreachable.
+  await new Promise<void>((resolve) => {
+    app.listen(env.PORT, '0.0.0.0', () => {
+      logger.info('server_listening', {
+        port: env.PORT,
+        env: env.NODE_ENV,
+        prod: isProd,
+        mcp: `${env.API_BASE_URL}/mcp`,
+      });
+      startKeepAlive();
+      resolve();
     });
-    startKeepAlive();
   });
+
+  await connectDatabase();
+  startScheduler();
 }
 
 boot();
