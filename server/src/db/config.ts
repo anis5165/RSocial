@@ -1,20 +1,32 @@
+import dns from 'node:dns';
 import type { ConnectionOptions } from 'mysql2';
 import { env, isProd } from '../config/env';
+
+/** mysql2's published types omit Node net.connect fields that the driver still forwards. */
+type MysqlNetOptions = ConnectionOptions & {
+  family?: number;
+  lookup?: (
+    hostname: string,
+    options: dns.LookupOneOptions,
+    callback: (err: NodeJS.ErrnoException | null, address: string, family: number) => void
+  ) => void;
+};
 
 function isLocalHost(host: string): boolean {
   return host === 'localhost' || host === '127.0.0.1' || host === '::1';
 }
 
-export function mysqlConnectionOptions(overrides: ConnectionOptions = {}): ConnectionOptions {
+export function mysqlConnectionOptions(overrides: ConnectionOptions = {}): MysqlNetOptions {
   const host = env.DATABASE_HOST;
   const local = isLocalHost(host);
+  const ipFamily = env.DATABASE_IP_FAMILY === 6 ? 6 : env.DATABASE_IP_FAMILY === 0 ? 0 : 4;
 
   let ssl: ConnectionOptions['ssl'] | undefined;
   if (env.DATABASE_SSL === 'require' || (env.DATABASE_SSL === 'auto' && isProd && !local)) {
     ssl = { rejectUnauthorized: env.DATABASE_SSL_REJECT_UNAUTHORIZED };
   }
 
-  return {
+  const options: MysqlNetOptions = {
     host,
     port: env.DATABASE_PORT,
     user: env.DATABASE_USER,
@@ -23,12 +35,20 @@ export function mysqlConnectionOptions(overrides: ConnectionOptions = {}): Conne
     connectTimeout: env.DATABASE_CONNECT_TIMEOUT_MS,
     enableKeepAlive: true,
     keepAliveInitialDelay: 10_000,
-    // Render + Hostinger: dual-stack DNS often yields AggregateError with an empty message.
-    family: env.DATABASE_IP_FAMILY,
     timezone: 'Z',
     dateStrings: false,
     ...overrides,
   };
+
+  // Render + Hostinger: dual-stack DNS often yields AggregateError with an empty message.
+  if (ipFamily === 4 || ipFamily === 6) {
+    options.family = ipFamily;
+    options.lookup = (hostname, _opts, cb) => {
+      dns.lookup(hostname, { family: ipFamily, all: false }, cb);
+    };
+  }
+
+  return options;
 }
 
 export function mysqlPoolMeta(): Record<string, unknown> {
