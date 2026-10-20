@@ -8,6 +8,7 @@ import { requestLogger } from './middleware/logging';
 import { errorHandler } from './middleware/errorHandler';
 import { csrfProtection } from './middleware/csrf';
 import { startScheduler } from './services/scheduler/schedulerService';
+import { startKeepAlive } from './services/keepalive/keepAlive';
 import { logger } from './utils/logger';
 import { pool } from './db/pool';
 import { formatMysqlError, mysqlPoolMeta } from './db/config';
@@ -124,6 +125,7 @@ async function boot() {
       prod: isProd,
       mcp: `${env.API_BASE_URL}/mcp`,
     });
+    startKeepAlive();
   });
 }
 

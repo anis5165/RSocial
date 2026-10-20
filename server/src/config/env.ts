@@ -41,6 +41,12 @@ const envSchema = z.object({
     .transform((v) => v === 'true'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   DEFAULT_TIMEZONE: z.string().default('Asia/Kolkata'),
+  /** unset = on in production only; "true"/"false" to force. */
+  KEEP_ALIVE: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === 'true')),
+  KEEP_ALIVE_INTERVAL_MS: z.coerce.number().default(5 * 60 * 1000),
 });
 
 const parsed = envSchema.safeParse(process.env);
