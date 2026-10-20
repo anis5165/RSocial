@@ -58,6 +58,7 @@ export function mysqlPoolMeta(): Record<string, unknown> {
     user: env.DATABASE_USER,
     ssl: env.DATABASE_SSL,
     ipFamily: env.DATABASE_IP_FAMILY,
+    ssh: Boolean(env.DATABASE_SSH_HOST && env.DATABASE_SSH_USER),
   };
 }
 

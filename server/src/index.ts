@@ -10,8 +10,11 @@ import { csrfProtection } from './middleware/csrf';
 import { startScheduler } from './services/scheduler/schedulerService';
 import { startKeepAlive } from './services/keepalive/keepAlive';
 import { logger } from './utils/logger';
-import { pool } from './db/pool';
+import { fail } from './utils/response';
+import { pool, recreatePool } from './db/pool';
 import { formatMysqlError, mysqlPoolMeta } from './db/config';
+import { isDbReady, setDbReady } from './db/status';
+import { sshTunnelConfigured, startSshTunnel } from './db/sshTunnel';
 import { createMcpRouter, mountMcpAuth } from './mcp/http';
 import { mountChatgptIntegration } from './integrations/chatgpt';
 
@@ -79,20 +82,28 @@ mountChatgptIntegration(app);
 
 app.use(csrfProtection);
 
-let dbReady = false;
-
 app.get('/api/health', (_req, res) => {
   res.json({
     success: true,
     data: {
-      status: dbReady ? 'ok' : 'degraded',
-      db: dbReady ? 'up' : 'down',
+      status: isDbReady() ? 'ok' : 'degraded',
+      db: isDbReady() ? 'up' : 'down',
       time: new Date().toISOString(),
       mcp: '/mcp',
       chatgptActions: '/integrations/chatgpt/v1',
       chatgptOpenApi: '/integrations/chatgpt/openapi.json',
     },
   });
+});
+
+app.use((req, res, next) => {
+  if (isDbReady()) return next();
+  return fail(
+    res,
+    'DB_UNAVAILABLE',
+    'Database is not reachable from Render yet. Login will work after MySQL connects.',
+    503
+  );
 });
 
 app.use('/api/auth', authRoutes);
@@ -111,19 +122,37 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+let sshTunnelReady = false;
+
+async function ensureSshTunnel(): Promise<void> {
+  if (!sshTunnelConfigured()) return;
+  if (sshTunnelReady) return;
+  const localPort = await startSshTunnel();
+  recreatePool({ host: '127.0.0.1', port: localPort, stream: undefined });
+  sshTunnelReady = true;
+}
+
 async function connectDatabase(): Promise<void> {
   let attempt = 0;
+  if (!sshTunnelConfigured()) {
+    logger.warn('ssh_tunnel_not_configured', {
+      hint: 'Render cannot open Hostinger :3306. Set DATABASE_SSH_HOST, DATABASE_SSH_USER, and DATABASE_SSH_PASSWORD from Hostinger SSH Access.',
+    });
+  }
   for (;;) {
     attempt += 1;
     try {
+      await ensureSshTunnel();
       await pool.query('SELECT 1');
-      dbReady = true;
+      setDbReady(true);
       logger.info('database_connected', { attempt });
       return;
     } catch (err) {
       logger.error('database_connection_failed', {
         attempt,
-        hint: 'Hostinger: Websites → Remote MySQL → Any Host (%) for this database. Copy the hostname from that page (often srvXXXX.hstgr.io), not localhost.',
+        hint: sshTunnelConfigured()
+          ? 'SSH tunnel or Hostinger SSH credentials failed. Check DATABASE_SSH_* on Render and that SSH Access is enabled in hPanel.'
+          : 'Direct MySQL :3306 from Render is blocked. Set DATABASE_SSH_HOST, DATABASE_SSH_USER, and DATABASE_SSH_PASSWORD.',
         ...mysqlPoolMeta(),
         ...formatMysqlError(err),
       });

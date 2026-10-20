@@ -27,6 +27,13 @@ const envSchema = z.object({
   /** 4 = IPv4 only (recommended on Render). 0 = dual-stack. */
   DATABASE_IP_FAMILY: z.coerce.number().default(4),
   DATABASE_CONNECT_TIMEOUT_MS: z.coerce.number().default(15000),
+  /** When set with DATABASE_SSH_USER, MySQL is reached via SSH (Hostinger + Render). */
+  DATABASE_SSH_HOST: z.string().optional().default(''),
+  DATABASE_SSH_PORT: z.coerce.number().default(22),
+  DATABASE_SSH_USER: z.string().optional().default(''),
+  DATABASE_SSH_PASSWORD: z.string().optional().default(''),
+  DATABASE_SSH_PRIVATE_KEY: z.string().optional().default(''),
+  DATABASE_SSH_DEST_HOST: z.string().optional().default('127.0.0.1'),
   JWT_SECRET: z.string().min(16),
   SESSION_SECRET: z.string().min(16),
   ENCRYPTION_KEY: z.string().min(32),

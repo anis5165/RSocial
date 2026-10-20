@@ -1,14 +1,25 @@
 import mysql, { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+import type { ConnectionOptions } from 'mysql2';
 import { env } from '../config/env';
 import { mysqlConnectionOptions } from './config';
 
-export const pool = mysql.createPool({
-  ...mysqlConnectionOptions(),
-  database: env.DATABASE_NAME,
-  waitForConnections: true,
-  connectionLimit: 10,
-  namedPlaceholders: false,
-});
+function makePool(overrides: ConnectionOptions = {}) {
+  return mysql.createPool({
+    ...mysqlConnectionOptions(overrides),
+    database: env.DATABASE_NAME,
+    waitForConnections: true,
+    connectionLimit: 10,
+    namedPlaceholders: false,
+  });
+}
+
+export let pool = makePool();
+
+export function recreatePool(overrides: ConnectionOptions = {}): void {
+  const previous = pool;
+  pool = makePool(overrides);
+  void previous.end().catch(() => undefined);
+}
 
 export type DbConn = mysql.Pool | mysql.PoolConnection;
 
