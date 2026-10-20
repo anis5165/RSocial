@@ -2,15 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import mysql, { RowDataPacket } from 'mysql2/promise';
 import { env } from '../config/env';
+import { mysqlConnectionOptions } from './config';
 
 async function migrate() {
-  const connection = await mysql.createConnection({
-    host: env.DATABASE_HOST,
-    port: env.DATABASE_PORT,
-    user: env.DATABASE_USER,
-    password: env.DATABASE_PASSWORD,
-    multipleStatements: true,
-  });
+  const connection = await mysql.createConnection(
+    mysqlConnectionOptions({ multipleStatements: true })
+  );
 
   await connection.query(
     `CREATE DATABASE IF NOT EXISTS \`${env.DATABASE_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`

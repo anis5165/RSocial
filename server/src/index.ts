@@ -10,6 +10,7 @@ import { csrfProtection } from './middleware/csrf';
 import { startScheduler } from './services/scheduler/schedulerService';
 import { logger } from './utils/logger';
 import { pool } from './db/pool';
+import { formatMysqlError, mysqlPoolMeta } from './db/config';
 import { createMcpRouter, mountMcpAuth } from './mcp/http';
 import { mountChatgptIntegration } from './integrations/chatgpt';
 
@@ -108,7 +109,8 @@ async function boot() {
     logger.info('database_connected');
   } catch (err) {
     logger.error('database_connection_failed', {
-      message: err instanceof Error ? err.message : 'unknown',
+      ...mysqlPoolMeta(),
+      ...formatMysqlError(err),
     });
     process.exit(1);
   }

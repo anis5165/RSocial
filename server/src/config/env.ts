@@ -12,11 +12,21 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   APP_BASE_URL: z.string().url(),
   API_BASE_URL: z.string().url(),
-  DATABASE_HOST: z.string().min(1),
+  DATABASE_HOST: z.string().trim().min(1),
   DATABASE_PORT: z.coerce.number().default(3306),
-  DATABASE_NAME: z.string().min(1),
-  DATABASE_USER: z.string().min(1),
+  DATABASE_NAME: z.string().trim().min(1),
+  DATABASE_USER: z.string().trim().min(1),
   DATABASE_PASSWORD: z.string().default(''),
+  /** auto = SSL in production for remote hosts; require/disable to force. */
+  DATABASE_SSL: z.enum(['auto', 'require', 'disable']).default('disable'),
+  DATABASE_SSL_REJECT_UNAUTHORIZED: z
+    .enum(['true', 'false'])
+    .optional()
+    .default('false')
+    .transform((v) => v === 'true'),
+  /** 4 = IPv4 only (recommended on Render). 0 = dual-stack. */
+  DATABASE_IP_FAMILY: z.coerce.number().default(4),
+  DATABASE_CONNECT_TIMEOUT_MS: z.coerce.number().default(15000),
   JWT_SECRET: z.string().min(16),
   SESSION_SECRET: z.string().min(16),
   ENCRYPTION_KEY: z.string().min(32),
