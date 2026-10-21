@@ -83,6 +83,50 @@ export async function uploadImage(userId: string, file: Express.Multer.File): Pr
   return getMediaById(mediaId, userId);
 }
 
+/** MCP-compatible: uploadImage(userId, file) */
+export async function uploadImageUsingChatGPT(file: Express.Multer.File): Promise<MediaPublic> {
+  validateUpload(file);
+
+  const mediaId = newId();
+  const result = await uploadMedia({
+    buffer: file.buffer,
+    userId: 'chatgpt',
+    mediaId,
+    mimeType: file.mimetype,
+  });
+
+  const width = result.width ?? null;
+  const height = result.height ?? null;
+  if (width && height && (width < MIN_DIMENSION || height < MIN_DIMENSION)) {
+    await cloudinaryDelete(result.public_id).catch(() => undefined);
+    throw new AppError(
+      'IMAGE_TOO_SMALL',
+      `Image must be at least ${MIN_DIMENSION}px on the shortest side.`,
+      400
+    );
+  }
+
+  await queryExec(
+    `INSERT INTO rs_media
+      (id, user_id, cloudinary_public_id, cloudinary_url, secure_url, resource_type, mime_type, file_size, width, height)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      mediaId,
+      'chatgpt',
+      result.public_id,
+      result.url,
+      result.secure_url,
+      result.resource_type || 'image',
+      file.mimetype,
+      file.size,
+      width,
+      height,
+    ]
+  );
+
+  return getMediaById(mediaId, 'chatgpt');
+}
+
 export async function listMedia(
   userId: string,
   opts: { search?: string; limit?: number; offset?: number } = {}

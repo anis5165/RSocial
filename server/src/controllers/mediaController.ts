@@ -4,6 +4,7 @@ import {
   getMediaById,
   listMedia,
   uploadImage,
+  uploadImageUsingChatGPT,
 } from '../services/media/mediaService';
 import { ok } from '../utils/response';
 import { AppError } from '../utils/errors';
@@ -24,6 +25,18 @@ export async function upload(req: Request, res: Response, next: NextFunction) {
       throw new AppError('FILE_REQUIRED', 'Image file is required.', 400);
     }
     const media = await uploadImage(req.user!.id, req.file);
+    return ok(res, { media }, 201);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+export async function uploadChatGPT(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.file) {
+      throw new AppError('FILE_REQUIRED', 'Image file is required.', 400);
+    }
+    const media = await uploadImageUsingChatGPT(req.file);
     return ok(res, { media }, 201);
   } catch (err) {
     return next(err);
