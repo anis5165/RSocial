@@ -13,7 +13,7 @@ const router = Router();
 
 router.get('/', requireAuth, media.list);
 router.post('/', requireAuth, uploadLimiter, upload.single('file'), media.upload);
-router.post('/chatgpt', uploadLimiter, upload.single('file'), media.uploadChatGPT);
+router.post('/chatgpt', uploadLimiter, upload.any(), media.uploadChatGPT);
 router.get('/:id', requireAuth, media.getOne);
 router.delete('/:id', requireAuth, media.remove);
 

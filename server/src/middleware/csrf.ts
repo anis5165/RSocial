@@ -14,7 +14,8 @@ function isMcpOrOAuthPath(path: string): boolean {
     path === '/revoke' ||
     path.startsWith('/.well-known/') ||
     path.startsWith('/api/accounts/instagram/callback') ||
-    path.startsWith('/integrations/chatgpt/')
+    path.startsWith('/integrations/chatgpt/') ||
+    path === '/api/media/chatgpt'
   );
 }
 

@@ -47,6 +47,8 @@ const envSchema = z.object({
     .optional()
     .transform((v) => v === 'true'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  /** Optional rs_users.id that unauthenticated ChatGPT uploads are stored under. */
+  CHATGPT_UPLOAD_USER_ID: z.string().optional().default(''),
   DEFAULT_TIMEZONE: z.string().default('Asia/Kolkata'),
   /** unset = on in production only; "true"/"false" to force. */
   KEEP_ALIVE: z
